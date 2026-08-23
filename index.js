@@ -1,12 +1,15 @@
 const express = require('express');
 const app = express();
-__path = process.cwd()
 const bodyParser = require("body-parser");
-const PORT = process.env.PORT || 10000;
-let code = require('./pair'); 
+const PORT = process.env.PORT || 3000;
+let code = require('./pair');
 
 // Increase event listeners limit
 require('events').EventEmitter.defaultMaxListeners = 500;
+
+// Middleware - Should come BEFORE routes
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Routes
 app.use('/code', code);
@@ -17,11 +20,7 @@ app.use('/', async (req, res, next) => {
     res.sendFile(__path + '/main.html')
 });
 
-// Middleware
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// Health check endpoint for keep-alive
+// Health check endpoint
 app.get('/ping', (req, res) => {
     res.status(200).send({
         status: 'active',
@@ -37,9 +36,10 @@ app.use((err, req, res, next) => {
     res.status(500).send({ error: 'Something went wrong!' });
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`
+// Only start server if not in Vercel environment
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`
 ╔════════════════════════════════════════╗
 ║     🤖 njabulomini-bot is alive!      ║
 ║                                        ║
@@ -47,18 +47,9 @@ app.listen(PORT, () => {
 ║     🌐 URL: http://localhost:${PORT}    ║
 ║     👑 Made by Hans Tech              ║
 ╚════════════════════════════════════════╝
-    `);
-});
+        `);
+    });
+}
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-    console.log('\n🛑 Shutting down gracefully...');
-    process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-    console.log('\n🛑 Shutting down gracefully...');
-    process.exit(0);
-});
-
+// Export app for Vercel
 module.exports = app;
