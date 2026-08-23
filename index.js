@@ -3,55 +3,41 @@ const path = require('path');
 const app = express();
 const bodyParser = require("body-parser");
 
-// Define paths properly
-const __dirname = path.resolve();
-const PUBLIC_PATH = path.join(__dirname, 'public');
+// Use current directory
+const PUBLIC_DIR = __dirname;
 
-// Increase event listeners limit
-require('events').EventEmitter.defaultMaxListeners = 500;
+console.log('✅ Starting bot...');
+console.log('📁 Serving from:', PUBLIC_DIR);
 
-// Middleware - MUST come BEFORE routes
+// Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static(PUBLIC_DIR));
 
-// Serve static files
-app.use(express.static(PUBLIC_PATH));
-
-// Routes
+// Load pair module
 try {
-    let code = require('./pair');
-    app.use('/code', code);
+    const code = require('./pair');
+    if (code) {
+        app.use('/code', code);
+        console.log('✅ Pair module loaded');
+    }
 } catch (err) {
-    console.error('Failed to load pair module:', err);
+    console.error('❌ Pair module error:', err.message);
 }
 
-// Serve HTML files
-app.get('/pair', (req, res) => {
-    res.sendFile(path.join(PUBLIC_PATH, 'pair.html'));
+// Serve HTML
+app.get('/', (req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, 'main.html'));
 });
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(PUBLIC_PATH, 'main.html'));
+app.get('/pair', (req, res) => {
+    // If pair.html exists, serve it, otherwise serve main.html
+    res.sendFile(path.join(PUBLIC_DIR, 'main.html'));
 });
 
 // Health check
 app.get('/ping', (req, res) => {
-    res.status(200).json({
-        status: 'active',
-        bot: 'njabulomini-bot',
-        uptime: process.uptime(),
-        memory: process.memoryUsage()
-    });
+    res.json({ status: 'active', bot: 'njabulomini-bot' });
 });
 
-// Error handling
-app.use((err, req, res, next) => {
-    console.error('Error:', err.stack);
-    res.status(500).json({ 
-        error: 'Something went wrong!',
-        message: err.message 
-    });
-});
-
-// Export for Vercel
 module.exports = app;
