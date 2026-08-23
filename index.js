@@ -1,28 +1,42 @@
 const express = require('express');
+const path = require('path');
 const app = express();
 const bodyParser = require("body-parser");
-const PORT = process.env.PORT || 3000;
-let code = require('./pair');
+
+// Define paths properly
+const __dirname = path.resolve();
+const PUBLIC_PATH = path.join(__dirname, 'public');
 
 // Increase event listeners limit
 require('events').EventEmitter.defaultMaxListeners = 500;
 
-// Middleware - Should come BEFORE routes
+// Middleware - MUST come BEFORE routes
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Serve static files
+app.use(express.static(PUBLIC_PATH));
+
 // Routes
-app.use('/code', code);
-app.use('/pair', async (req, res, next) => {
-    res.sendFile(__path + '/pair.html')
-});
-app.use('/', async (req, res, next) => {
-    res.sendFile(__path + '/main.html')
+try {
+    let code = require('./pair');
+    app.use('/code', code);
+} catch (err) {
+    console.error('Failed to load pair module:', err);
+}
+
+// Serve HTML files
+app.get('/pair', (req, res) => {
+    res.sendFile(path.join(PUBLIC_PATH, 'pair.html'));
 });
 
-// Health check endpoint
+app.get('/', (req, res) => {
+    res.sendFile(path.join(PUBLIC_PATH, 'main.html'));
+});
+
+// Health check
 app.get('/ping', (req, res) => {
-    res.status(200).send({
+    res.status(200).json({
         status: 'active',
         bot: 'njabulomini-bot',
         uptime: process.uptime(),
@@ -30,26 +44,14 @@ app.get('/ping', (req, res) => {
     });
 });
 
-// Error handling middleware
+// Error handling
 app.use((err, req, res, next) => {
     console.error('Error:', err.stack);
-    res.status(500).send({ error: 'Something went wrong!' });
+    res.status(500).json({ 
+        error: 'Something went wrong!',
+        message: err.message 
+    });
 });
 
-// Only start server if not in Vercel environment
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
-        console.log(`
-╔════════════════════════════════════════╗
-║     🤖 njabulomini-bot is alive!      ║
-║                                        ║
-║     📡 Server running on port: ${PORT}    ║
-║     🌐 URL: http://localhost:${PORT}    ║
-║     👑 Made by Hans Tech              ║
-╚════════════════════════════════════════╝
-        `);
-    });
-}
-
-// Export app for Vercel
+// Export for Vercel
 module.exports = app;
